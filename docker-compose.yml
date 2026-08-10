@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: truster_catalog_app
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=pgsql
+      - REDIS_HOST=redis
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Worker de colas separado del proceso web: el importador (§3.1.2) corre
+  # en background aquí, nunca dentro del ciclo request/response del `app`.
+  worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: truster_catalog_worker
+    working_dir: /var/www/html
+    command: php artisan queue:work redis --tries=3 --backoff=5 --sleep=1
+    volumes:
+      - .:/var/www/html
+    environment:
+      - DB_HOST=pgsql
+      - REDIS_HOST=redis
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  pgsql:
+    image: postgres:15-alpine
+    container_name: truster_catalog_pgsql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: truster_catalog
+      POSTGRES_USER: truster
+      POSTGRES_PASSWORD: truster
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U truster -d truster_catalog"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: truster_catalog_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgsql_data:

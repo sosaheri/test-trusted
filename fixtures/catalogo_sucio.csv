@@ -1,0 +1,28 @@
+﻿name,sku,price,stock
+Cinta de Teflón 1/2",SKU-2001,1.25,4000
+Broca HSS 6mm,SKU-2002,3,50,1200
+"Motor Trifasico 5HP","SKU-2003","1,234.56","10"
+"Cable Vulcanizado 3x14","SKU-2004","2.500,75","40"
+Interruptor Termomagnetico 20A,SKU-2005,8.40,600
+Interruptor Termomagnetico 20A (recarga),SKU-2005,9.10,550
+Tuerca Hexagonal M8 (actualizado),SKU-1002,0.35,11500
+Cinta Metrica 5m,SKU-2006,4.20,-15
+Nivel de Burbuja 60cm,SKU-2007,-12.00,80
+"VÃ¡lvula EsfÃ©rica 1 1/2""",SKU-2008,15.30,120
+"Manguera de JardÃ­n 20m",SKU-2009,7.40,200
+"Tornillo Autorroscante
+Cabeza Phillips 1""",SKU-2010,0.12,8000
+Producto Sin Precio Ni Stock,SKU-2011
+Adaptador USB-C,SKU-2012,3.99,500,EXTRA_CAMPO_INESPERADO
+Producto Sin SKU,,2.50,100
+,SKU-2013,5.00,50
+Regulador de Voltaje,SKU-2014,ABC,40
+Fusible 15A,SKU-2015,0.45,muchos
+Extension Electrica 5m,SKU-2016,$12.99,60
+Clavo de Acero 2 pulgadas,SKU-2017,0.02,1.5E+4
+
+Cinta Adhesiva 3M;SKU-2018;4.10;300
+name,sku,price,stock
+ Cinta Aislante Roja , SKU-2020 , 2.10 , 300
+Cable UTP Cat6 100m",SKU-2019,3.25,250
+"Termostato Digital sin cierre de comilla,SKU-2021,22.50,15

@@ -1,0 +1,6 @@
+@import 'vuetify/styles';
+@import '@mdi/font/css/materialdesignicons.css';
+
+html, body, #app {
+    height: 100%;
+}

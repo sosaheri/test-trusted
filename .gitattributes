@@ -1,0 +1,11 @@
+# Los fixtures CSV están construidos byte a byte a propósito (BOM, salto de
+# línea embebido en campo entrecomillado, encoding mixto). No permitir que
+# Git normalice finales de línea en ellos.
+fixtures/*.csv -text
+
+*.php text eol=lf
+*.vue text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
