@@ -48,10 +48,10 @@ Vite queda en `http://localhost:5173` y proxyea `/api` contra el backend.
 
 ## Credenciales semilla
 
-| Empresa | Email | Password | company_id |
-|---|---|---|---|
-| Empresa Uno C.A. | `ana@empresa-uno.test` | `password` | 1 |
-| Empresa Dos C.A. | `beto@empresa-dos.test` | `password` | 2 |
+| Empresa          | Email                     | Password     | company_id |
+| ---------------- | ------------------------- | ------------ | ---------- |
+| Empresa Uno C.A. | `ana@empresa-uno.test`  | `password` | 1          |
+| Empresa Dos C.A. | `beto@empresa-dos.test` | `password` | 2          |
 
 `POST /api/login` con esas credenciales devuelve un Bearer token (Sanctum).
 Úsalo para probar el aislamiento cross-tenant con ambos usuarios.
