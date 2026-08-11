@@ -16,11 +16,18 @@ import LegacyProductRow from './components/LegacyProductRow.vue';
           LegacyProductRow.vue viene en Options API a propósito (§3.4,
           refactor obligatorio). Este uso de ejemplo NO forma parte del
           contrato de props/emits que debes preservar; bórralo cuando
-          integres el componente real en tu tabla.
+          integres el componente real en tu tabla. Se envuelve en
+          table/tbody porque la raíz del componente es un <tr> — sin esto
+          es HTML inválido (el navegador lo tolera, pero no hay que
+          depender de eso).
         -->
-        <LegacyProductRow
-          :product="{ id: 0, name: 'Ejemplo', sku: 'SKU-0000', price: 0, stock: 0 }"
-        />
+        <table>
+          <tbody>
+            <LegacyProductRow
+              :product="{ id: 0, name: 'Ejemplo', sku: 'SKU-0000', price: 0, stock: 0 }"
+            />
+          </tbody>
+        </table>
       </v-container>
     </v-main>
   </v-app>

@@ -18,7 +18,12 @@ export default defineConfig({
         }),
     ],
     server: {
-        host: '0.0.0.0',
+        // El frontend corre en el host, no en un contenedor (ver README) —
+        // 'localhost' basta. 0.0.0.0 hacía que Laravel escribiera esa
+        // dirección literal en `public/hot`, y el navegador la rechaza
+        // (ERR_ADDRESS_INVALID: 0.0.0.0 es una dirección de bind, no de
+        // destino).
+        host: 'localhost',
         port: 5173,
     },
 });
