@@ -4,6 +4,13 @@ return [
     'default' => env('CACHE_DRIVER', 'redis'),
 
     'stores' => [
+        // Usado por phpunit.xml (CACHE_DRIVER=array) para que los tests no
+        // dependan de Redis.
+        'array' => [
+            'driver' => 'array',
+            'serialize' => false,
+        ],
+
         'redis' => [
             'driver' => 'redis',
             'connection' => 'cache',
