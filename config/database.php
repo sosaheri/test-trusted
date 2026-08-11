@@ -6,6 +6,17 @@ return [
     'default' => env('DB_CONNECTION', 'pgsql'),
 
     'connections' => [
+        // Solo para tests locales sin Docker (phpunit.xml puede sobreescribir
+        // DB_CONNECTION=sqlite / DB_DATABASE=:memory:). El driver real de la
+        // app, en Docker y en producción, es 'pgsql' — ver abajo.
+        'sqlite' => [
+            'driver' => 'sqlite',
+            'url' => env('DATABASE_URL'),
+            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DATABASE_URL'),
