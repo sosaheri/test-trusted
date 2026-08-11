@@ -35,8 +35,15 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
 
+        // Sin EnsureFrontendRequestsAreStateful: ese middleware es para el
+        // modo "SPA" de Sanctum (cookie de sesión + CSRF, primer-party,
+        // mismo dominio). Este starter-kit usa el otro modo de Sanctum
+        // -tokens Bearer emitidos por AuthController::login()-, pensado
+        // para que el frontend pueda vivir en otro origen (Vite en :5173)
+        // sin depender de cookies. Mezclar ambos modos es lo que produce
+        // un 419 "CSRF token mismatch" en /api/login pese a no usar
+        // cookies para nada.
         'api' => [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
