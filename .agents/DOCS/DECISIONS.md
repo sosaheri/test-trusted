@@ -75,6 +75,15 @@ La sección final no se reescribe como un resumen genérico; es la versión esta
 - **Riesgos y límites:** cualquier documento o criterio que asuma `completed` como estado del proyecto queda desalineado con la implementación y debe ajustarse a la realidad del flujo validado.
 - **Estado:** `validada`
 
+### [F02] Aplicación atómica y catálogo multi-tenant
+- **Contexto:** la Fase B debe promover solo filas válidas desde `import_run_items` a `products`, manteniendo el aislamiento por compañía y evitando duplicados por idempotencia.
+- **Fuente de verdad:** `PRUEBA_TECNICA_CANDIDATO.md`, `F02_APPLY_Y_CATALOGO_API.md`, `app/Services/ImportRunApplyService.php`, `app/Http/Controllers/ProductController.php`.
+- **Patología del CSV o caso relevante:** SKU duplicado dentro de la misma empresa, apply repetido sobre la misma corrida, y fuga entre compañías durante la consulta del catálogo.
+- **Hipótesis inicial / sugerencia de IA:** aplicar los registros sin validación adicional y hacer un upsert por SKU global.
+- **Decisión final del desarrollador:** aplicar solo los `import_run_items` validos y filtrar por `company_id` del usuario autenticado. La clave de merge debe ser `company_id + sku`, no el SKU global. Se implementará `DB::transaction` y early-return cuando `status === 'applied'` para mantener la idempotencia.
+- **Riesgos y límites:** no se aceptará un apply sobre productos ajenos ni una actualización que ignore `deleted_at` y la continuidad del soft delete. La Fase B no corrige datos inválidos de la Fase A; solo los promueve si ya fueron validados.
+- **Estado:** `aprobada`
+
 ### [F01] Uso de `DECIMAL` y precisión financiera
 - **Contexto:** el proyecto exige precisión estricta en precio y stock para mantener integridad contable y operativa.
 - **Fuente de verdad:** `PRUEBA_TECNICA_CANDIDATO.md`, reglas de negocio del proyecto, definición de `Product`.
