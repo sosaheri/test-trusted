@@ -74,3 +74,17 @@ Advertencia explícita: el código de esa rama contiene también decisiones que 
 - Impacto de negocio: se puede vender con precios incorrectos o inventariar con stock no fiable, afectando finanzas y operaciones.
 - Corrección propuesta: usar tipos `DECIMAL(18,4)` y `DECIMAL(14,6)`; prohibir `float` o `double` en la capa de persistencia.
 - Confianza: Alta
+
+### [H04] Estado de la corrida desalineado con el flujo real de F01
+- Archivo:App/Services/CatalogCsvImportService.php:103
+- Severidad: Medio
+- Impacto de negocio: si el criterio de cierre usa `completed` pero el flujo real del proyecto usa `validated`, la auditoría y el cierre funcional quedan incongruentes y se puede interpretar mal el estado del import.
+- Corrección propuesta: documentar el contrato real del flujo (`pending` -> `processing` -> `validated` -> `applied`/`failed`) y ajustar los gates de aceptación para reflejarlo. La validación del proyecto se hace sobre `validated` como estado terminal de la Fase A.
+- Confianza: Alta
+
+### [H05] Validación de volumen por streaming en F01
+- Archivo:App/Services/CatalogCsvImportService.php:57
+- Severidad: Medio
+- Impacto de negocio: un importador que cargue todo el CSV en memoria puede agotar RAM y bloquear la worker, especialmente con 100k filas.
+- Corrección propuesta: mantener `fgetcsv` y procesar por chunks de 1.000 filas, como ya se hace en el servicio y se validó por la prueba de flujo de importación.
+- Confianza: Alta

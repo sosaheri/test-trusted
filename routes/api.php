@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ImportRunController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,9 +21,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
 
-    // TODO (candidato):
-    //   GET  /products              -> listado paginado/ordenado/buscado, server-side, scoped a company_id
-    //   POST /import-runs           -> recibe el CSV, encola el Job, responde con import_run_id (202)
-    //   GET  /import-runs/{id}      -> estado + resumen (para polling)
-    //   POST /import-runs/{id}/apply -> promueve staging -> catálogo real (idempotente)
+    Route::get('/products', [ProductController::class, 'index']);
+
+    Route::post('/import-runs', [ImportRunController::class, 'store']);
+    Route::get('/import-runs/{importRun}', [ImportRunController::class, 'show']);
+    Route::post('/import-runs/{importRun}/apply', [ImportRunController::class, 'apply']);
 });
