@@ -44,10 +44,10 @@ Los fixtures no reemplazan la prueba ni el código base: son evidencia de casos 
 ## 6. Reglas de documentación obligatoria
 Cada funcionalidad debe dejar evidencia explícita en:
 
-- `.agents/DOCS/DECISIONS.md` — decisiones técnicas, trade-offs, manejo de CSV sucio y descartes del alcance.
-- `.agents/DOCS/AI_AUDIT.md` — prompts clave, fallos generados por IA, severidad, impacto y correcciones.
+- `.agents/DOCS/DECISIONS.md` — entregable final con decisiones de arquitectura y trade-offs; mantiene una sección inicial estable y un historial del proceso por patología y funcionalidad.
+- `.agents/DOCS/AI_AUDIT.md` — entregable crítico con bitácora de prompts, auditoría de código generado por IA, revisión de PR ajena y estimación de ahorro. Debe mantenerse como trazabilidad en curso, no como documento "de cierre".
 
-No se considera entregada una funcionalidad si no tiene trazabilidad documental de decisión y validación.
+No se considera entregada una funcionalidad si no tiene trazabilidad documental de decisión, auditoría y validación.
 
 ## 7. Modo de Operación
 Para desarrollar cualquier módulo, consulta el archivo correspondiente en `FUNCIONALIDADES/`, sigue el flujo definido en `PROTOCOLO_DE_FASES.md` y documenta la decisión final en `DECISIONS.md` y `AI_AUDIT.md` antes de cerrar la funcionalidad.

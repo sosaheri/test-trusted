@@ -22,10 +22,13 @@ Este protocolo establece la metodología estándar de 5 fases secuenciales que d
    - Propuesta de arquitectura/modelado de base de datos.
    - Checklist de validación de invariantes (Multi-tenant, tipos `DECIMAL`, memoria).
 3. Registrar las decisiones técnicas de la funcionalidad en `.agents/DOCS/DECISIONS.md`.
+   - Debe mantener una sección inicial estable como entregable final.
    - Debe incluir patrón por cada patología del CSV sucio.
    - Debe documentar trade-offs, descartes y decisiones por empresa/tenant.
    - Debe reflejar si la solución usa `staging`, `apply`, `soft deletes`, `idempotencia` o `atomicidad`.
 4. Si la funcionalidad tiene ambigüedad o conflicto entre requerimientos, resolverlo con evidencia y documentarlo en `DECISIONS.md`; no dejarlo implícito.
+
+> Regla de trazabilidad: `DECISIONS.md` no se maneja como resumen final suelto; se mantiene con un bloque fijo de entregable y un historial operativo del proceso.
 
 ---
 
@@ -72,8 +75,12 @@ Este protocolo establece la metodología estándar de 5 fases secuenciales que d
 - Confianza: Alta | Media | Baja
 ```
 
-4. Verificar que los archivos finales en `.agents/DOCS/` reflejen fielmente lo construido.
-5. El cierre no es completo si `DECISIONS.md` o `AI_AUDIT.md` están incompletos o no tienen evidencia verificable.
+4. Registrar en `.agents/DOCS/AI_AUDIT.md` (§6.4):
+   - Estimación de ahorro y la parte del trabajo donde la IA restó velocidad.
+5. Verificar que los archivos finales en `.agents/DOCS/` reflejen fielmente lo construido.
+6. El cierre no es completo si `DECISIONS.md` o `AI_AUDIT.md` están incompletos o no tienen evidencia verificable.
+
+> Regla de trazabilidad: `AI_AUDIT.md` debe cubrir el proceso completo y no se postergará exclusivamente a la etapa final; se actualiza conforme aparecen hallazgos, pruebas y revisiones.
 
 ---
 

@@ -1,34 +1,70 @@
 # Revisión Previa y Validación — Funcionalidad 01 (Staging)
 
-## 1. Diagnóstico de Fixtures
-- [ ] Inspección de `fixtures/catalogo_sucio.csv`:
-  - Patologías detectadas en precios (símbolos de moneda, comas como decimales).
-  - Patologías en stocks (valores alfanuméricos, negativos, vacíos).
-  - Comportamiento ante SKUs faltantes o duplicados intra-archivo.
-- [ ] Inspección de `fixtures/catalogo_100k.csv`:
-  - Verificación del volumen de datos y estimación de iteraciones por chunk.
+## 1. Diagnóstico de la Fase 1
+### 1.1 Evidencia del proyecto
+- `routes/api.php` declara claramente que estas rutas son responsabilidad del candidato:
+  - `GET /products`
+  - `POST /import-runs`
+  - `GET /import-runs/{id}`
+  - `POST /import-runs/{id}/apply`
+- El starter-kit no incluye ni `Product` ni `ImportRun` modelados ni migrados.
+- `users` sí incluye `company_id` desde la migración base, por lo que el aislamiento multi-tenant ya existe en la capa de usuario.
+- `Company` documenta explícitamente que el modelo `Product` y su relación con `Company` son responsabilidad del candidato.
 
-## 2. Hipótesis inicial / sugerencia de IA
-- **Qué sugiere la IA:** procesar el CSV en un servicio único, validar todo en memoria y luego persistir en lotes.
-- **Riesgo detectado:** esta enfoque puede romper la restricción de uso de memoria y degradar el comportamiento para 100k filas.
-- **Observación:** la IA puede proponer una solución funcional, pero debe validarse contra la regla de volumen y multi-tenancy.
+### 1.2 Patologías observadas en los fixtures
+Revisé el contenido actual de `fixtures/catalogo_sucio.csv` y estas son las condiciones relevantes que impactan el diseño:
+- SKU nulo o vacío
+- SKU duplicado dentro del mismo archivo
+- Precio con formato no estándar: `1,234.56`, `2.500,75`, `$12.99`
+- Stock con valores no numéricos: `muchos`, `1.5E+4`, vacíos, negativos
+- Campos faltantes: filas sin precio o sin stock
+- Filas con columnas extra: `EXTRA_CAMPO_INESPERADO`
+- Registros con delimitador distinto: `;` en lugar de `,`
+- Encodings problemáticos: `VÃ¡lvula`, `JardÃ­n`, etc.
+- Fila con salto de línea dentro del contenido
 
-## 3. Propuesta Técnica y Arquitectura
-- [ ] **Estrategia de Streaming:** Confirmar uso de `fopen` y `fgetcsv` con generadores PHP en lugar de cargar el archivo completo en memoria (`file()` o `Slurp`).
-- [ ] **Tamaño de Chunk:** Inserción en bloques de 1.000 registros mediante `ImportRunItem::insert()`.
-- [ ] **Estructura de Errores:** Definir formato de respuesta en columna `errors` (ej. JSON estructurado `{"sku": ["El campo SKU es obligatorio"]}`).
-- [ ] **Multi-tenancy:** Verificar que el `company_id` proviene exclusivamente de `auth()->user()->company_id` y se propaga al `ImportRun`.
-- [ ] **Estado del flujo:** la validación previa debe ser aprobada antes de entrar a la Fase 3.
+### 1.3 Conclusión de análisis
+La funcionalidad no puede asumir que existe el endpoint ni la entidad. La tarea incluye crear el contrato API y la capa de staging si aún no existe.
 
-## 4. Decisión final propuesta del desarrollador
-- **Decisión:** usar staging + job en background + validación por fila, sin tocar `products` en la primera fase.
-- **Motivo:** esto respeta la gobernanza de dos fases, mantiene idempotencia y evita mutar el catálogo real antes de aplicar.
-- **Riesgo controlado:** se documentará cada patología en `.agents/DOCS/DECISIONS.md` y se registrará la evidencia en `.agents/DOCS/AI_AUDIT.md`.
+---
 
-## 5. Checklist de transición
-- [ ] Volcar la matriz formal de decisiones a `.agents/DOCS/DECISIONS.md`.
-- [ ] Registrar el historial de hipótesis IA vs decisión final en `.agents/DOCS/AI_AUDIT.md`.
-- [ ] Esperar aprobación antes de iniciar la Fase 3 (Ejecución de Código).
-- [ ] Estado final: `pendiente de aprobación` / `aprobada` / `rechazada`.
+## 2. Revisión de la Fase 2: propuesta técnica
+### 2.1 Hipótesis inicial / sugerencia de IA
+- **Qué sugiere la IA:** procesar todo el CSV en una sola carga y luego separar filas válidas vs rechazadas.
+- **Riesgo real:** esto puede romper la restricción de memoria para `catalogo_100k.csv` y además mezclar validación con mutación en la misma operación.
+- **Conclusión:** la IA puede proponer una solución viable, pero no es aceptable sin reforzar la lógica de streaming, staging y tenant isolation.
 
-> Reglas: esta revisión previa no se considera cerrada ni autorizada para pasar a implementación sin aprobación explícita.
+### 2.2 Decisión técnica propuesta
+- **Estrategia de procesamiento:** leer el CSV con `fopen` + `fgetcsv` o generadores PHP, nunca cargar el archivo completo en memoria.
+- **Tamaño de chunk:** trabajar en bloques de 1.000 registros para persistencia incremental.
+- **Modelo de staging:** crear `import_runs` e `import_run_items` como tabla intermedia con estados `valid`/`rejected`.
+- **Multi-tenancy:** forzar `company_id` desde `auth()->user()->company_id` y nunca desde el CSV o del payload.
+- **Regla de negocio no negociable:** `products` no debe tocarse en la Fase A; la mutación real ocurre solo en Apply.
+
+### 2.3 Decisión final del desarrollador
+- Se implementará un flujo de importación con Fase A de staging y Fase B de apply.
+- La Fase A solo validará y persistirá filas en `import_run_items`.
+- La Fase B será una acción explícita que promueva esos registros a `products` dentro de una transacción SQL.
+- El endpoint `POST /api/import-runs` formará parte de esta funcionalidad si aún no existe.
+
+---
+
+## 3. Riesgos, límites y decisiones de alcance
+- No se debe construir autenticación real, roles ni ERP adicional.
+- No se debe realizar ninguna mutación directa sobre `products` durante el staging.
+- No se debe aceptar `float`/`double` en precio o stock.
+- No se debe aplicar lógica que dependa del payload del cliente para establecer `company_id`.
+- La decisión sobre cada patología del CSV debe quedar en `.agents/DOCS/DECISIONS.md`.
+
+---
+
+## 4. Checklist de transición
+- [x] Diagnóstico del código base y fixtures realizado.
+- [x] Evidencia de Fase 1 documentada.
+- [x] Propuesta técnica de Fase 2 documentada.
+- [ ] Registrar la decisión formal en `.agents/DOCS/DECISIONS.md`.
+- [ ] Registrar la auditoría de IA en `.agents/DOCS/AI_AUDIT.md`.
+- [ ] Esperar aprobación explícita para pasar a la Fase 3.
+
+> Estado actual: `pendiente de aprobación`.
+> Esta revisión previa no autoriza implementar la Fase 3 hasta que se confirme la decisión final.
