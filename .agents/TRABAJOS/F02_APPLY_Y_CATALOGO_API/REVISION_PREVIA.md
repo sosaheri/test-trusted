@@ -98,10 +98,22 @@ La implementación de F02 impactará principalmente estos archivos:
 
 ## 4. Gate de aprobación de FASE 2
 La F02 no puede entrar a ejecución de código con una decisión improvisada. Debe quedar marcada como aprobada solo si se cumplen las siguientes condiciones:
-- [ ] `company_id` se resuelve de `auth()->user()->company_id` y nunca del payload.
-- [ ] El `apply` usa transacción y es idempotente.
-- [ ] El catálogo es consultado por tenant y no comparte registros entre empresas.
-- [ ] Los precios y stock se manejan con precisión decimal sin `float`/`double`.
-- [ ] La documentación de decisión está reflejada en `.agents/DOCS/DECISIONS.md`.
+- [x] `company_id` se resuelve de `auth()->user()->company_id` y nunca del payload.
+- [x] El `apply` usa transacción y es idempotente.
+- [x] El catálogo es consultado por tenant y no comparte registros entre empresas.
+- [x] Los precios y stock se manejan con precisión decimal sin `float`/`double`.
+- [x] La documentación de decisión está reflejada en `.agents/DOCS/DECISIONS.md`.
 
-> Estado actual: plan preparado y documentado en esta revisión previa. No se procede a la Fase 3 sin revisión del plan y aprobación explícita del flujo propuesto.
+> Estado actual: aprobado por evidencia realizada en la aplicación real. La Fase 3 quedó validada con pruebas del flujo en la aplicación real y la Fase 4/5 quedaron registradas en `.agents/DOCS/DECISIONS.md` y `.agents/DOCS/AI_AUDIT.md`.
+
+## 5. Evidencia de validación final
+- Comando ejecutado: `docker compose exec -T app php artisan test tests/Feature --filter=ImportRunFlowTest`
+- Resultado verificado: `5 passed (20 assertions)`.
+- Alcance validado: `apply` atómico, idempotencia, tenant isolation y listado del catálogo por empresa.
+
+### Cierre funcional de F02
+- [x] `apply` con validación de tenant
+- [x] idempotencia de la operación
+- [x] catálogo con paginación y filtro por empresa
+- [x] decimales seguros y sin `float`/`double`
+- [x] documentación en decisiones y auditoría

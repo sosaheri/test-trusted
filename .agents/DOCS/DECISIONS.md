@@ -84,6 +84,15 @@ La sección final no se reescribe como un resumen genérico; es la versión esta
 - **Riesgos y límites:** no se aceptará un apply sobre productos ajenos ni una actualización que ignore `deleted_at` y la continuidad del soft delete. La Fase B no corrige datos inválidos de la Fase A; solo los promueve si ya fueron validados.
 - **Estado:** `aprobada`
 
+### [F03] Pantalla maestra y refactor legacy
+- **Contexto:** la pantalla maestra de importación debe centralizar upload, polling, catálogo server-side y apply en una sola vista, además de refactorizar el componente legacy sin romper su contrato público.
+- **Fuente de verdad:** `PRUEBA_TECNICA_CANDIDATO.md`, `resources/js/App.vue`, `resources/js/components/LegacyProductRow.vue`, `routes/api.php`, `F03_FRONTEND_MASTER_VIEW.md`.
+- **Patología del CSV o caso relevante:** la UX debe manejar estados transitorios de import (`pending`, `processing`, `validated`, `failed`, `applied`) sin bloquear al usuario ni mezclar estados de diferentes tenants.
+- **Hipótesis inicial / sugerencia de IA:** crear una UI con polling agresivo constante y reescribir el componente legacy a script setup sin preservar exactamente la API.
+- **Decisión final del desarrollador:** usar polling cada 2 segundos solo mientras la corrida esté activa, detenerlo en estados terminales, y mantener intacto el contrato de `props` y `emits` del componente legacy. La tabla se conecta a `/api/products` con paginación server-side, sort y búsqueda debounced para evitar saturación.
+- **Riesgos y límites:** se evita introducir lógica renderizada no soportada por la API actual; la UI debe seguir un patrón de consumo real y estado explícito, sin inventar endpoints nuevos ni ocultar errores del backend.
+- **Estado:** `propuesta`
+
 ### [F01] Uso de `DECIMAL` y precisión financiera
 - **Contexto:** el proyecto exige precisión estricta en precio y stock para mantener integridad contable y operativa.
 - **Fuente de verdad:** `PRUEBA_TECNICA_CANDIDATO.md`, reglas de negocio del proyecto, definición de `Product`.

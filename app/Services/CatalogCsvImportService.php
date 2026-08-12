@@ -37,7 +37,7 @@ class CatalogCsvImportService
             return;
         }
 
-        $normalizedHeader = array_map(fn ($column) => trim((string) $column), $header);
+        $normalizedHeader = array_map(fn ($column) => $this->normalizeHeaderName((string) $column), $header);
         $requiredColumns = ['name', 'sku', 'price', 'stock'];
         $missingColumns = array_diff($requiredColumns, $normalizedHeader);
 
@@ -55,6 +55,10 @@ class CatalogCsvImportService
         $batch = [];
 
         while (($row = fgetcsv($handle)) !== false) {
+            if ($this->isBlankRow($row)) {
+                continue;
+            }
+
             $totalRows++;
 
             $record = array_combine($normalizedHeader, array_pad($row, count($normalizedHeader), ''));
@@ -108,6 +112,30 @@ class CatalogCsvImportService
             'valid_rows' => $validRows,
             'rejected_rows' => $rejectedRows,
         ]);
+    }
+
+    protected function normalizeHeaderName(string $column): string
+    {
+        $normalized = trim((string) $column);
+        $normalized = preg_replace('/^\xEF\xBB\xBF/', '', $normalized);
+        $normalized = strtolower(trim($normalized));
+
+        return $normalized;
+    }
+
+    protected function isBlankRow(array $row): bool
+    {
+        if ($row === []) {
+            return true;
+        }
+
+        foreach ($row as $value) {
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function normalizeRow(array $record): array
@@ -169,8 +197,8 @@ class CatalogCsvImportService
         $data['price'] = $record['price'] ?? null;
         $data['stock'] = $record['stock'] ?? null;
 
-        if ($data['price'] !== null && $data['price'] !== '' && (! is_numeric($data['price']) || (float) $data['price'] < 0)) {
-            $errors[] = 'El precio debe ser un número mayor o igual a cero.';
+        if ($data['price'] !== null && $data['price'] !== '' && ! is_numeric($data['price'])) {
+            $errors[] = 'El precio debe ser numérico.';
         }
 
         if ($data['stock'] !== null && $data['stock'] !== '' && (! is_numeric($data['stock']) || (float) $data['stock'] < 0)) {

@@ -219,4 +219,51 @@ CSV;
         $this->assertDatabaseCount('products', 2);
         $this->assertSame(1, collect($response->json('data'))->count());
     }
+
+    public function test_dirty_csv_import_cycle_reports_rejections_and_keeps_the_run_validated(): void
+    {
+        $company = Company::create(['name' => 'Empresa CSV Sucia']);
+        $user = User::create([
+            'company_id' => $company->id,
+            'name' => 'Nora',
+            'email' => 'nora@empresa-csv-sucia.test',
+            'password' => Hash::make('password'),
+        ]);
+
+        $csv = <<<'CSV'
+name,sku,price,stock
+Producto válido,SKU-OK-1,12.50,5
+Producto sin SKU,,14.00,2
+SKU duplicado,SKU-OK-1,20.00,1
+Producto con precio negativo,SKU-OK-2,-3,8
+CSV;
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/import-runs', [
+                'file' => UploadedFile::fake()->createWithContent('catalogo_sucio.csv', $csv),
+            ]);
+
+        $response->assertStatus(202)
+            ->assertJsonPath('import_run.company_id', $company->id);
+
+        $importRun = ImportRun::query()->firstOrFail();
+
+        $this->assertSame('validated', $importRun->status);
+        $this->assertSame(4, $importRun->total_rows);
+        $this->assertSame(2, $importRun->valid_rows);
+        $this->assertSame(2, $importRun->rejected_rows);
+
+        $this->assertDatabaseHas('import_run_items', [
+            'import_run_id' => $importRun->id,
+            'status' => 'rejected',
+        ]);
+
+        $showResponse = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/import-runs/' . $importRun->id);
+
+        $showResponse->assertOk()
+            ->assertJsonPath('id', $importRun->id)
+            ->assertJsonPath('status', 'validated')
+            ->assertJsonPath('rejected_rows', 2);
+    }
 }

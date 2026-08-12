@@ -1,89 +1,83 @@
 <!--
-  LegacyProductRow.vue — Options API (legacy).
+  LegacyProductRow.vue — Composition API refactor.
 
-  REFACTOR OBLIGATORIO (§3.4): migrar a Composition API con `<script setup>`
-  SIN alterar el contrato de props/emits documentado abajo. Cualquier
-  consumidor externo de este componente (por ejemplo tu tabla de catálogo)
-  debe seguir funcionando exactamente igual después del refactor.
-
-  Contrato público (no cambiar):
+  Este componente conserva exactamente el contrato público del legacy:
     props:
-      - product: Object, required. Forma: { id, name, sku, price, stock }
+      - product: Object, required
       - selected: Boolean, default false
       - readonly: Boolean, default false
     emits:
-      - 'select'          -> (productId: number)              al togglear el checkbox
-      - 'quantity-change'  -> (payload: { id, stock: number })  al confirmar edición de stock
+      - 'select'
+      - 'quantity-change'
 -->
-<script>
-export default {
-    name: 'LegacyProductRow',
-    props: {
-        product: {
-            type: Object,
-            required: true,
-            validator(value) {
-                return ['id', 'name', 'sku', 'price', 'stock'].every((key) => key in value);
-            },
-        },
-        selected: {
-            type: Boolean,
-            default: false,
-        },
-        readonly: {
-            type: Boolean,
-            default: false,
+<script setup>
+import { computed, ref, watch } from 'vue';
+
+const props = defineProps({
+    product: {
+        type: Object,
+        required: true,
+        validator(value) {
+            return ['id', 'name', 'sku', 'price', 'stock'].every((key) => key in value);
         },
     },
-    emits: ['select', 'quantity-change'],
-    data() {
-        return {
-            draftStock: this.product.stock,
-            editingStock: false,
-        };
+    selected: {
+        type: Boolean,
+        default: false,
     },
-    computed: {
-        formattedPrice() {
-            // Presentación únicamente. La precisión real (DECIMAL(18,4))
-            // se preserva en backend; aquí solo formateamos para mostrar.
-            return new Intl.NumberFormat('es-VE', {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-            }).format(Number(this.product.price));
-        },
-        stockLooksLow() {
-            return Number(this.product.stock) <= 0;
-        },
+    readonly: {
+        type: Boolean,
+        default: false,
     },
-    watch: {
-        'product.stock'(newStock) {
-            this.draftStock = newStock;
-        },
+});
+
+const emit = defineEmits(['select', 'quantity-change']);
+
+const draftStock = ref(props.product.stock);
+const editingStock = ref(false);
+
+const formattedPrice = computed(() => {
+    return new Intl.NumberFormat('es-VE', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+    }).format(Number(props.product.price));
+});
+
+const stockLooksLow = computed(() => Number(props.product.stock) <= 0);
+
+watch(
+    () => props.product.stock,
+    (newStock) => {
+        draftStock.value = newStock;
     },
-    methods: {
-        onToggleSelect() {
-            this.$emit('select', this.product.id);
-        },
-        startEditingStock() {
-            if (this.readonly) return;
-            this.editingStock = true;
-        },
-        confirmStock() {
-            this.editingStock = false;
-            const parsed = Number(this.draftStock);
-            if (Number.isNaN(parsed)) {
-                this.draftStock = this.product.stock;
-                return;
-            }
-            this.$emit('quantity-change', { id: this.product.id, stock: parsed });
-        },
-        cancelEditingStock() {
-            this.draftStock = this.product.stock;
-            this.editingStock = false;
-        },
-    },
-};
+);
+
+function onToggleSelect() {
+    emit('select', props.product.id);
+}
+
+function startEditingStock() {
+    if (props.readonly) return;
+    editingStock.value = true;
+}
+
+function confirmStock() {
+    editingStock.value = false;
+    const parsed = Number(draftStock.value);
+
+    if (Number.isNaN(parsed)) {
+        draftStock.value = props.product.stock;
+        return;
+    }
+
+    emit('quantity-change', { id: props.product.id, stock: parsed });
+}
+
+function cancelEditingStock() {
+    draftStock.value = props.product.stock;
+    editingStock.value = false;
+}
 </script>
 
 <template>

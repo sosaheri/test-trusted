@@ -18,30 +18,31 @@ class ProductController extends Controller
     {
         $companyId = $this->companyContextService->resolve();
 
+        $allowedSortFields = ['id', 'sku', 'name', 'price', 'stock', 'created_at'];
+        $sortBy = in_array($request->get('sort_by'), $allowedSortFields, true)
+            ? $request->get('sort_by')
+            : 'id';
+        $sortDir = strtolower((string) $request->get('sort_dir', 'desc')) === 'asc'
+            ? 'asc'
+            : 'desc';
+
         $query = Product::query()
             ->where('company_id', $companyId)
-            ->orderBy($request->get('sort_by', 'id'), $request->get('sort_dir', 'desc'));
+            ->orderBy($sortBy, $sortDir);
 
         if ($search = $request->get('search')) {
             $term = trim((string) $search);
 
             if ($term !== '') {
-                $likeTerm = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $term) . '%';
+                $likeTerm = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
 
-                if (DB::getDriverName() === 'pgsql') {
-                    $query->where(function ($q) use ($likeTerm) {
-                        $q->whereRaw('name ILIKE ?', [$likeTerm])
-                            ->orWhereRaw('sku ILIKE ?', [$likeTerm]);
-                    });
-                } else {
-                    $query->where(function ($q) use ($likeTerm) {
-                        $q->whereRaw('LOWER(name) LIKE LOWER(?)', [$likeTerm])
-                            ->orWhereRaw('LOWER(sku) LIKE LOWER(?)', [$likeTerm]);
-                    });
-                }
+                $query->where(function ($q) use ($likeTerm) {
+                    $q->whereRaw('LOWER(name) LIKE LOWER(?)', [$likeTerm])
+                        ->orWhereRaw('LOWER(sku) LIKE LOWER(?)', [$likeTerm]);
+                });
             }
         }
 
-        return response()->json($query->paginate($request->get('per_page', 15)));
+        return response()->json($query->paginate((int) $request->get('per_page', 15)));
     }
 }
