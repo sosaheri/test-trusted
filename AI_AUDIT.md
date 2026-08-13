@@ -232,17 +232,40 @@ Se agregó polling y animación de progreso para que la UI refleje el estado rea
 
 ## 6.3 Auditoría de PR ajeno
 
+### [H01] No se aisla el tenant en el job
+- Archivo: app/Jobs/ImportProductsJob.php:19-27
+- Severidad: Crítico
+- Impacto de negocio: el worker corre fuera del request HTTP, por lo que `auth()->user()` no existe en ese proceso. Si el job usa el usuario de la sesión o un contexto no persistido, un import de una empresa puede ejecutarse contra otra
+- Corrección propuesta: no depender de la sesión. Persistir `company_id` en la entidad del import (`ImportRun`/`import_run_id`) y usar ese valor como fuente de verdad
+- Confianza: Alta
 
+### [H02] SKU global único en lugar de único por empresa
+- Archivo: database/migrations/2024_02_01_000000_create_products_table.php:11-20
+- Severidad: Crítico
+- Impacto de negocio: la base impone `sku` globalmente único. En un ERP multi-tenant, el mismo SKU puede existir en dos empresas distintas. 
+- Corrección propuesta: eliminar la unicidad global e imponer unicidad compuesta por `(company_id, sku)`
+- Confianza: Alta
 
-```
-# [ID] Título del hallazgo
-- Archivo:línea
-- Severidad: Crítico | Alto | Medio | Cosmético
-- Impacto de negocio: (qué se rompe, para quién, en qué escenario)
-- Corrección propuesta: (diff o descripción precisa)
-- Confianza: Alta | Media | Baja
-```
+### [H03] Uso de float/double en precio y stock
+- Archivo: database/migrations/2024_02_01_000000_create_products_table.php:13-18
+- Severidad: Crítico
+- Impacto de negocio: el esquema usa `decimal('price', 8, 2)` y `integer('stock')`, pero la implementación del job convierte `price` a `float` y `stock` a `int`. En un ERP con facturación e inventario, esto introducce errores de redondeo y pérdida de precisión
+- Corrección propuesta: mantener `DECIMAL(18,4)` para `price` y `DECIMAL(14,6)` para `stock` en el esquema 
+- Confianza: Alta
 
+### [H04] Lectura completa del CSV en memoria
+- Archivo: app/Jobs/ImportProductsJob.php:19-27
+- Severidad: Alto
+- Impacto de negocio: `file(storage_path("app/{$this->path}"))` carga todo el archivo en memoria antes de iterar. Con `fixtures/catalogo_100k.csv`, esto agota memoria, puede bloquear la worker y colgar la importación
+- Corrección propuesta: procesar por streaming con `fgetcsv()` y batches de 1000 filas
+- Confianza: Alta
+
+### [H05]  No hay idempotencia ni atomicidad en la Fase B
+- Archivo: app/Jobs/ImportProductsJob.php:19-27
+- Severidad: Alto
+- Impacto de negocio: si se reintenta el mismo job o se ejecuta el apply dos veces, el código puede duplicar 
+- Corrección propuesta: guardar `import_run_id`, `status` por item, y usar `updateOrCreate`
+- Confianza: Alta
 
 ## 6.4 Estimación de ahorro y control humano
 
