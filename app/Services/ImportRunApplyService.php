@@ -24,6 +24,10 @@ class ImportRunApplyService
             ->where('status', 'valid')
             ->get();
 
+        if ($validItems->isEmpty()) {
+            abort(422, 'No hay filas válidas para aplicar.');
+        }
+
         DB::transaction(function () use ($importRun, $validItems, $companyId) {
             foreach ($validItems as $item) {
                 $data = $item->data ?? [];

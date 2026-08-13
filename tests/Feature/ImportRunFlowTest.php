@@ -136,6 +136,50 @@ CSV;
         ]);
     }
 
+    public function test_apply_rejects_runs_without_valid_rows(): void
+    {
+        $company = Company::create(['name' => 'Empresa sin válidas']);
+        $user = User::create([
+            'company_id' => $company->id,
+            'name' => 'Eva',
+            'email' => 'eva@empresa-sin-validas.test',
+            'password' => Hash::make('password'),
+        ]);
+
+        $importRun = ImportRun::create([
+            'company_id' => $company->id,
+            'file_path' => 'imports/catalogo.csv',
+            'status' => 'validated',
+            'total_rows' => 2,
+            'valid_rows' => 0,
+            'rejected_rows' => 2,
+        ]);
+
+        ImportRunItem::create([
+            'import_run_id' => $importRun->id,
+            'row_number' => 1,
+            'status' => 'rejected',
+            'data' => [
+                'name' => 'Producto rechazado',
+                'sku' => '',
+                'price' => '',
+                'stock' => '5',
+            ],
+            'errors' => ['El SKU es obligatorio.'],
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/import-runs/' . $importRun->id . '/apply');
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'No hay filas válidas para aplicar.');
+
+        $this->assertDatabaseHas('import_runs', [
+            'id' => $importRun->id,
+            'status' => 'validated',
+        ]);
+    }
+
     public function test_apply_is_idempotent_for_the_same_import_run(): void
     {
         $company = Company::create(['name' => 'Empresa Idempotente']);

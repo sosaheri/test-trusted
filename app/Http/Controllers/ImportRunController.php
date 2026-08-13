@@ -22,11 +22,18 @@ class ImportRunController extends Controller
         $companyId = $this->companyContextService->resolve();
 
         $request->validate([
-            'file' => ['required', 'file', 'mimetypes:text/csv,text/plain,application/csv'],
+            'file' => ['required', 'file', 'max:20480'],
         ]);
 
         /** @var UploadedFile $file */
         $file = $request->file('file');
+
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+
+        if (! in_array($extension, ['csv', 'txt'], true)) {
+            abort(422, 'El archivo debe ser un CSV válido.');
+        }
+
         $path = $file->storeAs('imports', $file->getClientOriginalName(), 'local');
 
         $importRun = ImportRun::create([
@@ -58,12 +65,26 @@ class ImportRunController extends Controller
             abort(403, 'La corrida no pertenece a tu empresa.');
         }
 
+        $rejectedItems = $importRun->items()
+            ->where('status', 'rejected')
+            ->orderBy('row_number')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'row_number' => $item->row_number,
+                    'errors' => $item->errors ?? [],
+                    'data' => $item->data ?? [],
+                ];
+            })
+            ->all();
+
         return response()->json([
             'id' => $importRun->id,
             'status' => $importRun->status,
             'total_rows' => $importRun->total_rows,
             'valid_rows' => $importRun->valid_rows,
             'rejected_rows' => $importRun->rejected_rows,
+            'rejected_items' => $rejectedItems,
         ]);
     }
 

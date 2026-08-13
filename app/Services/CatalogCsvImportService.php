@@ -61,7 +61,13 @@ class CatalogCsvImportService
 
             $totalRows++;
 
-            $record = array_combine($normalizedHeader, array_pad($row, count($normalizedHeader), ''));
+            $rowValues = array_pad($row, count($normalizedHeader), '');
+
+            if (count($rowValues) > count($normalizedHeader)) {
+                $rowValues = array_slice($rowValues, 0, count($normalizedHeader));
+            }
+
+            $record = array_combine($normalizedHeader, $rowValues);
 
             if (! is_array($record)) {
                 $record = [];

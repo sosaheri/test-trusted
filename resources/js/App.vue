@@ -21,6 +21,8 @@ const searchQuery = ref('');
 const searchTimer = ref(null);
 const authReady = ref(false);
 const authError = ref('');
+const completionNotice = ref(null);
+const snackbarVisible = ref(false);
 
 const pagination = ref({
     page: 1,
@@ -35,13 +37,38 @@ const statusMeta = {
     idle: { color: 'secondary', label: 'Sin corrida activa' },
     pending: { color: 'warning', label: 'En cola de validación' },
     processing: { color: 'info', label: 'Procesando CSV' },
-    validated: { color: 'success', label: 'Validado' },
+    validated: { color: 'warning', label: 'Validado con errores' },
     applied: { color: 'success', label: 'Aplicado al catálogo' },
     failed: { color: 'error', label: 'Requiere revisión' },
 };
 
-const statusColor = computed(() => statusMeta[currentStatus.value]?.color ?? 'secondary');
-const statusLabel = computed(() => statusMeta[currentStatus.value]?.label ?? 'Sin corrida activa');
+const statusColor = computed(() => {
+    if (currentStatus.value === 'validated') {
+        return (importRun.value?.rejected_rows ?? 0) > 0 ? 'warning' : 'success';
+    }
+
+    return statusMeta[currentStatus.value]?.color ?? 'secondary';
+});
+const statusLabel = computed(() => {
+    if (currentStatus.value === 'validated') {
+        return (importRun.value?.rejected_rows ?? 0) > 0 ? 'Validado con errores' : 'Validado correctamente';
+    }
+
+    return statusMeta[currentStatus.value]?.label ?? 'Sin corrida activa';
+});
+const progressByStatus = {
+    idle: 0,
+    pending: 25,
+    processing: 50,
+    validated: 75,
+    applied: 100,
+    failed: 100,
+};
+const animatedProgress = ref(0);
+const pulseTimer = ref(null);
+const progressTarget = computed(() => progressByStatus[currentStatus.value] ?? 0);
+const progressValue = computed(() => animatedProgress.value);
+const rejectedItems = computed(() => importRun.value?.rejected_items ?? []);
 const summaryLabel = computed(() => {
     if (!importRun.value) {
         return 'Todavía no hay una corrida de importación.';
@@ -78,20 +105,20 @@ const uploadMessage = computed(() => {
         return 'Sube un CSV para iniciar la validación del catálogo.';
     }
 
+    if (currentStatus.value === 'pending' || currentStatus.value === 'processing') {
+        return 'Procesando archivo. Te avisaremos cuando termine la validación.';
+    }
+
     if (currentStatus.value === 'failed') {
         return 'La importación falló. Revisa el archivo y vuelve a intentarlo.';
     }
 
     if ((importRun.value.rejected_rows ?? 0) > 0) {
-        return `La importación terminó con ${importRun.value.rejected_rows} filas rechazadas. Revisa el detalle y corrige el archivo antes de aplicar.`;
+        return `La validación terminó con ${importRun.value.rejected_rows} filas rechazadas. Solo se aplicarán las filas válidas.`;
     }
 
     if (currentStatus.value === 'validated') {
         return 'La importación quedó validada y lista para aplicarse al catálogo del tenant.';
-    }
-
-    if (currentStatus.value === 'pending' || currentStatus.value === 'processing') {
-        return 'El archivo está siendo validado en segundo plano. Espera unos segundos y la vista actualizará el estado.';
     }
 
     return 'La importación se está ejecutando.';
@@ -146,10 +173,122 @@ async function fetchProducts() {
     }
 }
 
+function setCompletionNotice(status, payload) {
+    if (!status || ['pending', 'processing'].includes(status)) {
+        completionNotice.value = null;
+        snackbarVisible.value = false;
+        return;
+    }
+
+    if (status === 'validated') {
+        const rejected = Number(payload?.rejected_rows ?? 0);
+        completionNotice.value = {
+            type: rejected > 0 ? 'warning' : 'success',
+            message: rejected > 0
+                ? `Importación finalizada con ${rejected} filas rechazadas.`
+                : 'Importación finalizada correctamente.',
+        };
+        snackbarVisible.value = true;
+        return;
+    }
+
+    if (status === 'failed') {
+        completionNotice.value = {
+            type: 'error',
+            message: 'La validación falló. Revisa el archivo y vuelve a intentarlo.',
+        };
+        snackbarVisible.value = true;
+        return;
+    }
+
+    if (status === 'applied') {
+        completionNotice.value = {
+            type: 'success',
+            message: 'La importación se aplicó al catálogo correctamente.',
+        };
+        snackbarVisible.value = true;
+    }
+}
+
+function stopPulseProgress() {
+    if (pulseTimer.value) {
+        clearInterval(pulseTimer.value);
+        pulseTimer.value = null;
+    }
+}
+
+function animateProgress(targetValue) {
+    stopPulseProgress();
+
+    const startValue = animatedProgress.value;
+    const startAt = performance.now();
+    const durationMs = 600;
+
+    const step = (now) => {
+        const elapsed = now - startAt;
+        const progress = Math.min(elapsed / durationMs, 1);
+        animatedProgress.value = startValue + ((targetValue - startValue) * progress);
+
+        if (progress < 1) {
+            requestAnimationFrame(step);
+        }
+    };
+
+    requestAnimationFrame(step);
+}
+
+function startPulseProgress() {
+    stopPulseProgress();
+
+    const min = currentStatus.value === 'pending' ? 14 : 22;
+    const max = currentStatus.value === 'pending' ? 82 : 90;
+    let currentValue = min;
+    let direction = 1;
+    const step = 2.5;
+
+    pulseTimer.value = setInterval(() => {
+        currentValue += direction * step;
+
+        if (currentValue >= max) {
+            direction = -1;
+            currentValue = max;
+        }
+
+        if (currentValue <= min) {
+            direction = 1;
+            currentValue = min;
+        }
+
+        animatedProgress.value = currentValue;
+    }, 180);
+}
+
+watch(
+    () => currentStatus.value,
+    (status) => {
+        if (!status || !['pending', 'processing', 'validated', 'applied', 'failed'].includes(status)) {
+            stopPulseProgress();
+            animatedProgress.value = 0;
+            return;
+        }
+
+        if (status === 'pending' || status === 'processing') {
+            startPulseProgress();
+            return;
+        }
+
+        const nextValue = progressByStatus[status] ?? 0;
+        animateProgress(nextValue);
+    },
+    { immediate: true },
+);
+
 async function pollImportRun(runId) {
     if (!runId) {
         return;
     }
+
+    const previousStatus = currentStatus.value;
 
     try {
         const response = await axios.get(`/import-runs/${runId}`);
@@ -158,9 +297,10 @@ async function pollImportRun(runId) {
             ...response.data,
         };
 
-        const activeStates = ['pending', 'processing', 'validated'];
+        const activeStates = ['pending', 'processing'];
 
         if (activeStates.includes(response.data.status)) {
+            completionNotice.value = null;
             isPolling.value = true;
             pollingTimer.value = setTimeout(() => {
                 pollImportRun(runId);
@@ -168,11 +308,20 @@ async function pollImportRun(runId) {
             return;
         }
 
+        isPolling.value = false;
+
+        if (previousStatus === 'pending' || previousStatus === 'processing') {
+            setCompletionNotice(response.data.status, response.data);
+        }
+
         if ((response.data.rejected_rows ?? 0) > 0 && response.data.status === 'validated') {
             drawerOpen.value = true;
         }
 
-        isPolling.value = false;
+        if (response.data.status === 'failed') {
+            drawerOpen.value = true;
+        }
+
         await fetchProducts();
     } catch (error) {
         console.error('No se pudo consultar el estado del import run.', error);
@@ -185,12 +334,14 @@ async function uploadCsv() {
         await ensureAuthenticated();
     }
 
-    if (!uploadFile.value) {
+    const selectedFile = Array.isArray(uploadFile.value) ? uploadFile.value[0] : uploadFile.value;
+
+    if (!selectedFile) {
         return;
     }
 
     const formData = new FormData();
-    formData.append('file', uploadFile.value);
+    formData.append('file', selectedFile);
 
     loading.value = true;
 
@@ -288,6 +439,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     stopPolling();
+    stopPulseProgress();
     if (searchTimer.value) {
         clearTimeout(searchTimer.value);
     }
@@ -373,12 +525,36 @@ onBeforeUnmount(() => {
                 </v-alert>
 
                 <v-progress-linear
-                    v-if="currentStatus === 'pending' || currentStatus === 'processing' || currentStatus === 'validated' || isPolling"
-                    :model-value="currentStatus === 'validated' ? 100 : undefined"
-                    :indeterminate="currentStatus !== 'validated'"
-                    color="primary"
+                    v-if="importRun && ['pending', 'processing', 'validated', 'applied', 'failed'].includes(currentStatus)"
+                    :model-value="progressValue"
+                    :color="statusColor"
+                    height="12"
+                    rounded
                     class="mb-4"
                 />
+
+                <v-alert
+                    v-if="completionNotice"
+                    :type="completionNotice.type"
+                    variant="tonal"
+                    class="mb-4"
+                    border="start"
+                    prominent
+                >
+                    {{ completionNotice.message }}
+                </v-alert>
+
+                <v-snackbar
+                    v-model="snackbarVisible"
+                    :color="completionNotice?.type ?? 'success'"
+                    timeout="4000"
+                    location="top right"
+                >
+                    {{ completionNotice?.message ?? '' }}
+                    <template #actions>
+                        <v-btn variant="text" @click="snackbarVisible = false">Cerrar</v-btn>
+                    </template>
+                </v-snackbar>
 
                 <v-row class="mb-4">
                     <v-col cols="12" md="4">
@@ -415,9 +591,10 @@ onBeforeUnmount(() => {
                             color="success"
                             variant="flat"
                             @click="applyImport"
-                            :disabled="currentStatus !== 'validated'"
+                            :disabled="currentStatus !== 'validated' || (importRun?.valid_rows ?? 0) === 0"
+                            :title="(importRun?.valid_rows ?? 0) === 0 ? 'No hay filas válidas para aplicar' : 'Aplicar solo filas válidas'"
                         >
-                            Aplicar importación
+                            {{ (importRun?.valid_rows ?? 0) === 0 ? 'Sin filas válidas' : 'Aplicar importación' }}
                         </v-btn>
                     </v-card-title>
 
@@ -497,6 +674,38 @@ onBeforeUnmount(() => {
                                 <v-list-item-subtitle>{{ importRun?.rejected_rows ?? 0 }}</v-list-item-subtitle>
                             </v-list-item>
                         </v-list>
+
+                        <v-divider class="my-3" />
+
+                        <div class="text-subtitle-2 font-weight-bold mb-2">Detalle de filas rechazadas</div>
+
+                        <v-list v-if="rejectedItems.length" density="comfortable" nav>
+                            <v-list-item
+                                v-for="item in rejectedItems"
+                                :key="item.row_number"
+                                class="px-0"
+                            >
+                                <template #title>
+                                    Fila {{ item.row_number }}
+                                </template>
+                                <template #subtitle>
+                                    {{ Array.isArray(item.errors) ? item.errors.join(' • ') : item.errors || 'Sin detalle' }}
+                                </template>
+                                <div v-if="item.data" class="text-caption mt-2 text-medium-emphasis">
+                                    {{ item.data.name || 'Sin nombre' }} · {{ item.data.sku || 'SKU vacío' }}
+                                </div>
+                            </v-list-item>
+                        </v-list>
+
+                        <v-alert
+                            v-else
+                            type="info"
+                            variant="tonal"
+                            density="compact"
+                            class="mt-2"
+                        >
+                            No hay filas rechazadas para mostrar.
+                        </v-alert>
                     </v-card>
                 </v-navigation-drawer>
             </v-container>
