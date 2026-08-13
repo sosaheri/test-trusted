@@ -1,20 +1,7 @@
 # DECISIONS
 
-## Entregable final (mantenido al inicio)
-
-| Archivo | Descripción |
-| --- | --- |
-| `DECISIONS.md` | Decisiones de arquitectura y trade-offs. Una entrada por patología del CSV sucio. Qué dejaste fuera de alcance y por qué. |
-
 ## Propósito del archivo
-Registrar la trazabilidad de decisiones técnicas por funcionalidad y por patología de entrada, vinculando cada decisión con la evidencia del problema, la hipótesis inicial y la resolución final adoptada por el desarrollador.
-
-## Regla de mantenimiento
-Este documento tiene dos capas:
-1. La sección de entregable final, que debe mantenerse fija al inicio del archivo.
-2. El historial del proceso, que se va completando durante análisis, diseño, implementación y validación.
-
-La sección final no se reescribe como un resumen genérico; es la versión estable de las decisiones de arquitectura, trade-offs y alcance que se entregan al cierre.
+Registrar la trazabilidad de decisiones técnicas por funcionalidad  vinculando cada decisión con la evidencia del problema, la hipótesis inicial y la resolución final adoptada por el desarrollador.
 
 ---
 
